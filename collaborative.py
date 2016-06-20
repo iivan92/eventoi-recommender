@@ -66,45 +66,6 @@ def compute_matrix(listUsers,listEvents):
 
     return matrix
 
-def compute_matrix_corr(matrix,numUsers):
-    matrixUsers = np.zeros((numUsers,numUsers))
-
-    for i in xrange(numUsers):
-        for j in range(i+1, numUsers):            
-            matrixUsers[i][j] = coef(matrix[i],matrix[j])
-            matrixUsers[j][i] = matrixUsers[i][j]
-
-    return matrixUsers
-
-def compute_matrix_pred(corr,matrix,numUsers,numEvents):    
-    matrixPred = np.zeros((numUsers,numEvents))
-    for i in xrange(numUsers):
-        listNeigh = getNeighbors(corr[i]['list'])
-        
-        for event in xrange(numEvents):
-            dot = 0
-            weight = 0
-            for neigh in listNeigh:
-                c = neigh['value']
-                pos = neigh['pos']
-
-                value = matrix[pos][event]
-
-                dot = dot + value * c
-
-                if value != 0:
-                    weight = weight + c
-            
-            if weight != 0:
-                matrixPred[i][event] = dot / weight
-
-    return matrixPred
-
-def getNeighbors(corr):    
-    final = list(corr)
-    final.sort(key=getSortAtr,reverse=True)
-    return final[:5]
-
 def simple_similarity(x,y):
     count = 0
     for i in xrange(len(x)):
@@ -131,3 +92,42 @@ def coef(v1,v2):
         return 0
 
     return simple_similarity(v1,v2)
+
+def compute_matrix_corr(matrix,numUsers):
+    matrixUsers = np.zeros((numUsers,numUsers))
+
+    for i in xrange(numUsers):
+        for j in range(i+1, numUsers):            
+            matrixUsers[i][j] = coef(matrix[i],matrix[j])
+            matrixUsers[j][i] = matrixUsers[i][j]
+
+    return matrixUsers
+
+def getNeighbors(corr):    
+    final = list(corr)
+    final.sort(key=getSortAtr,reverse=True)
+    return final[:25]
+
+def compute_matrix_pred(corr,matrix,numUsers,numEvents):    
+    matrixPred = np.zeros((numUsers,numEvents))
+    for i in xrange(numUsers):
+        listNeigh = getNeighbors(corr[i]['list'])
+        
+        for event in xrange(numEvents):
+            dot = 0
+            weight = 0
+            for neigh in listNeigh:
+                c = neigh['value']
+                pos = neigh['pos']
+
+                value = matrix[pos][event]
+
+                dot = dot + value * c
+
+                if value != 0:
+                    weight = weight + c
+            
+            if weight != 0:
+                matrixPred[i][event] = dot / weight
+
+    return matrixPred
