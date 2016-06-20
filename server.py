@@ -15,9 +15,9 @@ app = Flask(__name__)
 # When running this app on the local machine, default the port to 8080
 port = int(os.getenv('VCAP_APP_PORT', 8080))
 
-app.config.update(
-    DEBUG=True,
-)
+#app.config.update(
+#    DEBUG=True,
+#)
 
 app.config['TRAP_BAD_REQUEST_ERRORS'] = True
 
@@ -53,8 +53,17 @@ def create_users(num):
         
     return json.dumps(response)  
 
+@app.route('/update/con/all', methods=['PUT'])
+def update_con_all():
+    con.update_all()
+
+    response = {}
+    response['code'] = 200
+    response['data'] = "Correct update"
+    return json.dumps(response)   
+
 @app.route('/update/con', methods=['PUT'])
-def update():
+def update_con():
     userId = request.form['userId']
 
     response = {}

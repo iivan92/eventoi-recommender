@@ -74,5 +74,17 @@ def update(userId):
             
             content.update({'user': userId}, {"$set": rowPred}, upsert=True)
 
+def update_all():
+    client = pymongo.MongoClient(MONGODB_URI)
+
+    db = client.get_default_database()
+    
+    users   = db['users']
+
+    cursor = users.find({}, {"_id":1})
+
+    for user in cursor:
+        update(user['_id'])
+
 def getSortAtr(item):
     return item['value']
