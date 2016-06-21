@@ -7,10 +7,14 @@ import random
 import numpy as np
 from math import*
 import time
+import utils
 
 MONGODB_URI = 'mongodb://admin:admin1234@ds013881.mlab.com:13881/db-eventoi-dev'
 
-def update():    
+def update():
+    updateNeig(25)
+
+def updateNeig(numNeig):    
     client = pymongo.MongoClient(MONGODB_URI)
 
     db = client.get_default_database()
@@ -26,21 +30,23 @@ def update():
 
     matrix = compute_matrix(listUsers, listEvents)
 
-    matrixUsers = compute_matrix_corr(matrix,numUsers)
+    matrixUsers = compute_matrix_sim(matrix,numUsers)
 
-    corr = []
+    sim = []
     for i in xrange(numUsers):
         userId = str(listUsers[i]['_id'])
         result = [{'id':str(listUsers[x]['_id']),'pos':x,  'value':matrixUsers[i][x]} for x in xrange(numUsers)]
-        corr.append({'id':userId,'list':result})
+        sim.append({'id':userId,'list':result})
 
-    matrixPred = compute_matrix_pred(corr,matrix,numUsers,numEvents)
+    matrixPred = compute_matrix_pred(sim,matrix,numUsers,numEvents,numNeig)
      
     for i in xrange(numUsers):
         userId = str(listUsers[i]['_id'])
         result = [{'id':str(listEvents[x]['_id']),'value':matrixPred[i][x]} for x in xrange(numEvents)]
         result.sort(key=getSortAtr,reverse=True)
-        userPredict = {'user':userId,'data':result}
+
+        userPredict = {'user':userId,'data':utils.normalize(result)}        
+        
         collaborative.update({'user': userId}, {"$set": userPredict}, upsert=True)
 
 def getSortAtr(item):
@@ -66,6 +72,7 @@ def compute_matrix(listUsers,listEvents):
 
     return matrix
 
+#interesect but penalizing the differences
 def simple_similarity(x,y):
     count = 0
     for i in xrange(len(x)):
@@ -77,9 +84,10 @@ def coef(v1,v2):
     newv1 = []
     newv2 = []
 
-    maxLen = min(len(v1),len(v2))
-
-    for i in xrange(maxLen):
+    union = 0
+    for i in xrange(len(v1)):
+        if v1[i] != 0 or v2[i] != 0:
+            union = union + 1
         if v1[i] != 0 and v2[i] != 0:
             newv1.append(v1[i])
             newv2.append(v2[i])
@@ -91,9 +99,9 @@ def coef(v1,v2):
     if len(v1)==0:
         return 0
 
-    return simple_similarity(v1,v2)
+    return simple_similarity(v1,v2)/union
 
-def compute_matrix_corr(matrix,numUsers):
+def compute_matrix_sim(matrix,numUsers):
     matrixUsers = np.zeros((numUsers,numUsers))
 
     for i in xrange(numUsers):
@@ -103,15 +111,19 @@ def compute_matrix_corr(matrix,numUsers):
 
     return matrixUsers
 
-def getNeighbors(corr):    
+def getNeighbors(corr,numNeig):    
     final = list(corr)
     final.sort(key=getSortAtr,reverse=True)
-    return final[:25]
 
-def compute_matrix_pred(corr,matrix,numUsers,numEvents):    
+    if numNeig > len(final):
+        numNeig = len(final)/2
+
+    return final[:numNeig]
+
+def compute_matrix_pred(corr,matrix,numUsers,numEvents,numNeig):    
     matrixPred = np.zeros((numUsers,numEvents))
     for i in xrange(numUsers):
-        listNeigh = getNeighbors(corr[i]['list'])
+        listNeigh = getNeighbors(corr[i]['list'],numNeig)
         
         for event in xrange(numEvents):
             dot = 0

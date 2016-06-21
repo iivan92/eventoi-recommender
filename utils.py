@@ -8,6 +8,8 @@ import random
 import numpy as np
 from math import*
 import time
+import collaborative as col
+import content as con
 
 MONGODB_URI = 'mongodb://admin:admin1234@ds013881.mlab.com:13881/db-eventoi-dev'
 
@@ -15,9 +17,9 @@ def create_events(num):
     template = {  "published": True,
                   "suspended": False,
                   "currency": "EUR",
-                  "hostName": "Mary Poppins",
-                  "hostFb": "117318205316818",                  
-                  "host": "5735088f8b73191d00cf365f",
+                  "hostName": "Ivan Megias",
+                  "hostFb": "10206104050992562",                  
+                  "host": "5736163851e4201d00df0569",
                   "visibleAssistants": True,
                   "isFree": True,
                   "sharing": 1,
@@ -45,7 +47,7 @@ def create_events(num):
 
     db = client.get_default_database()
 
-    events = db['events']
+    eventsDB = db['events']
     returnEvents = []
 
     for i in xrange(num):
@@ -74,7 +76,7 @@ def create_events(num):
 
         returnEvents.append(event)        
 
-    events.insert(returnEvents) 
+    eventsDB.insert(returnEvents) 
 
 def create_users(num):
     template = {    "gender": "male",
@@ -87,10 +89,10 @@ def create_users(num):
 
     db = client.get_default_database()
 
-    users = db['users']
-    events = db['events']
+    usersDB = db['users']
+    eventsDB = db['events']
     
-    listE = list(events.find({}, {"_id":1}))
+    listE = list(eventsDB.find({}, {"_id":1}))
     countE = len(listE)
 
     returnUsers = []
@@ -118,4 +120,78 @@ def create_users(num):
 
         returnUsers.append(user)        
 
-    users.insert(returnUsers)
+    usersDB.insert(returnUsers)
+
+def normalize(vector):
+    max1 = vector[0]['value']
+    max2 = fabs(vector[len(vector)-1]['value'])
+    maxPred = max(max1,max2)
+
+    if maxPred == 0:
+        maxPred = 1
+
+    return [{'id':pred['id'],'value':pred['value']/maxPred} for pred in vector]
+
+def init_testing(numUsers,numEvents):
+    client = pymongo.MongoClient(MONGODB_URI)
+
+    db = client.get_default_database()
+
+    usersDB   = db['users']
+    eventsDB  = db['events']
+    contDB    = db['cont']
+    colDB     = db['col']
+
+    usersDB.remove()
+    eventsDB.remove()
+    contDB.remove()
+    colDB.remove()
+
+    create_events(numEvents)
+    create_users(numUsers)
+
+def compute_metric(alg):
+    client = pymongo.MongoClient(MONGODB_URI)
+
+    db = client.get_default_database()
+
+    usersDB   = db['users']
+    eventsDB  = db['events']
+    algDB     = db[alg]
+
+    if alg == "col":
+        col.update()
+    else:
+        con.update_all()
+    
+    users = usersDB.find()
+    
+    RMSE = 0
+    MAE = 0
+    n = 0
+    for user in users:
+        likes = user['likes']
+
+        userId = str(user['_id'])
+
+        cursor    = algDB.find({'user':userId})
+        predAlg   = cursor[0]['data'];
+        listId    = [pred['id'] for pred in predAlg]
+
+        if len(likes) > 0:
+            for like in likes:
+                eventId = str(like['eventId'])
+                value = like['value']
+
+                idx = listId.index(eventId)
+                valueAlg = predAlg[idx]['value']
+
+                RMSE = RMSE + (valueAlg - value) ** 2
+                MAE = MAE + fabs(valueAlg - value)
+
+                n = n + 1
+
+    RMSE = sqrt(RMSE / n)
+    MAE = MAE / n
+
+    print "(" + alg + ") - RMSE = " + str(RMSE) + " MAE = " + str(MAE)

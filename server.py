@@ -15,9 +15,9 @@ app = Flask(__name__)
 # When running this app on the local machine, default the port to 8080
 port = int(os.getenv('VCAP_APP_PORT', 8080))
 
-#app.config.update(
-#    DEBUG=True,
-#)
+app.config.update(
+    DEBUG=True,
+)
 
 app.config['TRAP_BAD_REQUEST_ERRORS'] = True
 
@@ -50,6 +50,56 @@ def create_users(num):
     else:        
         response['code'] = 500
         response['data'] = "The number of users to create must be larger than 0"
+        
+    return json.dumps(response)  
+
+@app.route('/testing/init/<int:numUsers>/<int:numEvents>', methods=['GET'])
+def init_testing(numUsers,numEvents):
+    response = {}
+    if numUsers > 0:
+        utils.init_testing(numUsers,numEvents)
+
+        response['code'] = 200
+        response['data'] = "Testing init"         
+    else:        
+        response['code'] = 500
+        response['data'] = "The parameters are incorrect"
+        
+    return json.dumps(response)  
+
+
+@app.route('/testing')
+def test():
+    for i in [30,40,50]:
+        for j in [20,40,60,80,100]:
+            print "--------------------------------"
+            print "  Test - Users: " + str(i) + " Events: " + str(j)
+            print "--------------------------------"
+
+            utils.init_testing(i,j)
+            utils.compute_metric('cont')
+            utils.compute_metric('col')
+            
+            print "--------------------------------"
+    
+    response = {}
+    response['code'] = 200
+    response['data'] = "Full Testing completed" 
+        
+    return json.dumps(response) 
+
+
+@app.route('/testing/<method>', methods=['GET'])
+def compute_testing(method):
+    response = {}
+    if method == "col" or method == "cont":
+        utils.compute_metric(method)
+
+        response['code'] = 200
+        response['data'] = "Testing " + method         
+    else:        
+        response['code'] = 500
+        response['data'] = "The method is incorrect"
         
     return json.dumps(response)  
 

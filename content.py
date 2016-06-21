@@ -7,6 +7,7 @@ import random
 import numpy as np
 from math import*
 import time
+import utils
 
 MONGODB_URI = 'mongodb://admin:admin1234@ds013881.mlab.com:13881/db-eventoi-dev'
 
@@ -19,6 +20,7 @@ def update(userId):
     events  = db['events']
     content = db['cont']
 
+    userId = str(userId)
     objectUID = ObjectId(userId)
 
     cursor = users.find({'_id': objectUID})
@@ -63,7 +65,7 @@ def update(userId):
 
                 result.sort(key=getSortAtr,reverse=True)
 
-                rowPred = {'user':userId,'data':result}
+                rowPred = {'user':userId,'data':utils.normalize(result)}
                 
                 content.update({'user': userId}, {"$set": rowPred}, upsert=True)
         else:
